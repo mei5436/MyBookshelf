@@ -1,7 +1,6 @@
 //Copyright (c) 2017. 章钦豪. All rights reserved.
 package com.kunfei.bookshelf.view.popupwindow;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.util.AttributeSet;
@@ -21,6 +20,8 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 
 public class ReadAdjustPop extends FrameLayout {
+    @BindView(R.id.vw_bg)
+    View vwBg;
     @BindView(R.id.hpb_light)
     SeekBar hpbLight;
     @BindView(R.id.scb_follow_sys)
@@ -42,7 +43,7 @@ public class ReadAdjustPop extends FrameLayout {
 
     private Activity context;
     private ReadBookControl readBookControl = ReadBookControl.getInstance();
-    private OnAdjustListener adjustListener;
+    private Callback callback;
 
     public ReadAdjustPop(Context context) {
         super(context);
@@ -60,15 +61,14 @@ public class ReadAdjustPop extends FrameLayout {
     }
 
     private void init(Context context) {
-        @SuppressLint("InflateParams") View view = LayoutInflater.from(context).inflate(R.layout.pop_read_adjust, null);
-        addView(view);
+        View view = LayoutInflater.from(context).inflate(R.layout.pop_read_adjust, this);
         ButterKnife.bind(this, view);
-        view.setOnClickListener(null);
+        vwBg.setOnClickListener(null);
     }
 
-    public void setListener(Activity activity, OnAdjustListener adjustListener) {
+    public void setListener(Activity activity, Callback callback) {
         this.context = activity;
-        this.adjustListener = adjustListener;
+        this.callback = callback;
         initData();
         bindEvent();
         initLight();
@@ -85,9 +85,10 @@ public class ReadAdjustPop extends FrameLayout {
         } else {
             hpbTtsSpeechRate.setEnabled(true);
         }
-        hpbClick.setMax(180);
-        hpbClick.setProgress(readBookControl.getClickSensitivity());
-        tvAutoPage.setText(String.format("%sS", readBookControl.getClickSensitivity()));
+        //CPM范围设置 每分钟阅读200字到2000字 默认500字/分钟
+        hpbClick.setMax(readBookControl.maxCPM - readBookControl.minCPM);
+        hpbClick.setProgress(readBookControl.getCPM());
+        tvAutoPage.setText(String.format("%sCPM", readBookControl.getCPM()));
         hpbTtsSpeechRate.setProgress(readBookControl.getSpeechRate() - 5);
     }
 
@@ -132,12 +133,12 @@ public class ReadAdjustPop extends FrameLayout {
             }
         });
 
-        //自动翻页间隔
+        //自动翻页阅读速度(CPM)
         hpbClick.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                tvAutoPage.setText(String.format("%sS", i));
-                readBookControl.setClickSensitivity(i);
+                tvAutoPage.setText(String.format("%sCPM", i + readBookControl.minCPM));
+                readBookControl.setCPM(i + readBookControl.minCPM);
             }
 
             @Override
@@ -164,15 +165,15 @@ public class ReadAdjustPop extends FrameLayout {
                 //跟随系统
                 hpbTtsSpeechRate.setEnabled(false);
                 readBookControl.setSpeechRateFollowSys(true);
-                if (adjustListener != null) {
-                    adjustListener.speechRateFollowSys();
+                if (callback != null) {
+                    callback.speechRateFollowSys();
                 }
             } else {
                 //不跟随系统
                 hpbTtsSpeechRate.setEnabled(true);
                 readBookControl.setSpeechRateFollowSys(false);
-                if (adjustListener != null) {
-                    adjustListener.changeSpeechRate(readBookControl.getSpeechRate());
+                if (callback != null) {
+                    callback.changeSpeechRate(readBookControl.getSpeechRate());
                 }
             }
         });
@@ -190,8 +191,8 @@ public class ReadAdjustPop extends FrameLayout {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 readBookControl.setSpeechRate(seekBar.getProgress() + 5);
-                if (adjustListener != null) {
-                    adjustListener.changeSpeechRate(readBookControl.getSpeechRate());
+                if (callback != null) {
+                    callback.changeSpeechRate(readBookControl.getSpeechRate());
                 }
             }
         });
@@ -218,7 +219,7 @@ public class ReadAdjustPop extends FrameLayout {
         }
     }
 
-    public interface OnAdjustListener {
+    public interface Callback {
         void changeSpeechRate(int speechRate);
 
         void speechRateFollowSys();

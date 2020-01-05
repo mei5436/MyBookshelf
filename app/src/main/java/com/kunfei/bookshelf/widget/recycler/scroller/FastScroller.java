@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -17,10 +18,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-
-import com.kunfei.bookshelf.R;
-import com.kunfei.bookshelf.utils.ColorUtil;
-import com.kunfei.bookshelf.utils.theme.ThemeStore;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.IdRes;
@@ -35,6 +32,10 @@ import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
+
+import com.kunfei.bookshelf.R;
+import com.kunfei.bookshelf.utils.ColorUtil;
+import com.kunfei.bookshelf.utils.theme.ThemeStore;
 
 
 public class FastScroller extends LinearLayout {
@@ -67,13 +68,14 @@ public class FastScroller extends LinearLayout {
 
     private RecyclerView.OnScrollListener mScrollListener = new RecyclerView.OnScrollListener() {
         @Override
-        public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+        public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
             if (!mHandleView.isSelected() && isEnabled()) {
                 setViewPositions(getScrollProportion(recyclerView));
             }
         }
+
         @Override
-        public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+        public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
             super.onScrollStateChanged(recyclerView, newState);
             if (isEnabled()) {
                 switch (newState) {
@@ -146,11 +148,15 @@ public class FastScroller extends LinearLayout {
             layoutParams.setMargins(0, marginTop, 0, marginBottom);
             setLayoutParams(layoutParams);
         } else if (viewGroup instanceof RelativeLayout) {
+
             RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) getLayoutParams();
             int endRule = RelativeLayout.ALIGN_END;
+
             layoutParams.addRule(RelativeLayout.ALIGN_TOP, recyclerViewId);
             layoutParams.addRule(RelativeLayout.ALIGN_BOTTOM, recyclerViewId);
-            layoutParams.addRule(endRule, recyclerViewId);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                layoutParams.addRule(endRule, recyclerViewId);
+            }
             layoutParams.setMargins(0, marginTop, 0, marginBottom);
             setLayoutParams(layoutParams);
         } else {
@@ -257,7 +263,11 @@ public class FastScroller extends LinearLayout {
             }
         }
         DrawableCompat.setTint(mBubbleImage, mBubbleColor);
-        mBubbleView.setBackground(mBubbleImage);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            mBubbleView.setBackground(mBubbleImage);
+        }else {
+            mBubbleView.setBackgroundDrawable(mBubbleImage);
+        }
     }
 
     /**
@@ -433,6 +443,7 @@ public class FastScroller extends LinearLayout {
                             mBubbleView.setVisibility(GONE);
                             mBubbleAnimator = null;
                         }
+
                         @Override
                         public void onAnimationCancel(Animator animation) {
                             super.onAnimationCancel(animation);
@@ -467,6 +478,7 @@ public class FastScroller extends LinearLayout {
                         mScrollbar.setVisibility(GONE);
                         mScrollbarAnimator = null;
                     }
+
                     @Override
                     public void onAnimationCancel(Animator animation) {
                         super.onAnimationCancel(animation);

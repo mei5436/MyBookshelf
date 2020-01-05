@@ -3,14 +3,15 @@ package com.kunfei.bookshelf.utils.theme;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
+import android.os.Build;
 import android.view.View;
 import android.view.ViewTreeObserver;
-
-import com.kunfei.bookshelf.utils.DrawableUtil;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import com.kunfei.bookshelf.utils.DrawableUtil;
 
 /**
  * @author Karim Abou Zeid (kabouzeid)
@@ -19,12 +20,18 @@ public final class ViewUtil {
 
     @SuppressWarnings("deprecation")
     public static void removeOnGlobalLayoutListener(View v, ViewTreeObserver.OnGlobalLayoutListener listener) {
-        v.getViewTreeObserver().removeOnGlobalLayoutListener(listener);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            v.getViewTreeObserver().removeOnGlobalLayoutListener(listener);
+        }
     }
 
     @SuppressWarnings("deprecation")
     public static void setBackgroundCompat(@NonNull View view, @Nullable Drawable drawable) {
-        view.setBackground(drawable);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            view.setBackground(drawable);
+        } else {
+            view.setBackgroundDrawable(drawable);
+        }
     }
 
     public static TransitionDrawable setBackgroundTransition(@NonNull View view, @NonNull Drawable newDrawable) {

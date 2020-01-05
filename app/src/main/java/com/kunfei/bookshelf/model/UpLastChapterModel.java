@@ -5,19 +5,20 @@ import android.os.Looper;
 import android.text.TextUtils;
 
 import com.hwangjr.rxbus.RxBus;
+import com.kunfei.bookshelf.DbHelper;
 import com.kunfei.bookshelf.MApplication;
+import com.kunfei.bookshelf.bean.BookChapterBean;
 import com.kunfei.bookshelf.bean.BookShelfBean;
 import com.kunfei.bookshelf.bean.BookSourceBean;
 import com.kunfei.bookshelf.bean.SearchBookBean;
 import com.kunfei.bookshelf.constant.RxBusTag;
-import com.kunfei.bookshelf.dao.DbHelper;
 import com.kunfei.bookshelf.dao.SearchBookBeanDao;
 import com.kunfei.bookshelf.help.BookshelfHelp;
 import com.kunfei.bookshelf.utils.RxUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -55,16 +56,24 @@ public class UpLastChapterModel {
         compositeDisposable = new CompositeDisposable();
         searchBookBeanList = new ArrayList<>();
     }
-
+    private boolean equals(Object object1, Object object2) {
+        if (object1 != null) {
+            return object1.equals(object2);
+        }
+        if (object2 != null) {
+            return object2.equals(object1);
+        }
+        return true;
+    }
     public void startUpdate() {
-        if (!MApplication.getInstance().getConfigPreferences().getBoolean("upChangeSourceLastChapter", false))
+        if (!MApplication.getConfigPreferences().getBoolean("upChangeSourceLastChapter", false))
             return;
         if (compositeDisposable.size() > 0) return;
         List<SearchBookBean> beanList = new ArrayList<>();
         Observable.create((ObservableOnSubscribe<BookShelfBean>) e -> {
             List<BookShelfBean> bookShelfBeans = BookshelfHelp.getAllBook();
             for (BookShelfBean bookShelfBean : bookShelfBeans) {
-                if (!Objects.equals(bookShelfBean.getTag(), BookShelfBean.LOCAL_TAG)) {
+                if (!equals(bookShelfBean.getTag(), BookShelfBean.LOCAL_TAG)) {
                     e.onNext(bookShelfBean);
                 }
             }
@@ -153,10 +162,12 @@ public class UpLastChapterModel {
         compositeDisposable = new CompositeDisposable();
     }
 
-    public void onDestroy() {
-        stopUp();
-        executorService.shutdownNow();
-        model = null;
+    public static void destroy() {
+        if (model != null) {
+            model.stopUp();
+            model.executorService.shutdownNow();
+            model = null;
+        }
     }
 
     private Observable<SearchBookBean> findSearchBookBean(BookShelfBean bookShelf) {
@@ -184,7 +195,7 @@ public class UpLastChapterModel {
         });
     }
 
-    private Observable<BookShelfBean> getChapterList(BookShelfBean bookShelfBean) {
+    private Observable<List<BookChapterBean>> getChapterList(BookShelfBean bookShelfBean) {
         if (TextUtils.isEmpty(bookShelfBean.getBookInfoBean().getChapterUrl())) {
             return WebBookModel.getInstance().getBookInfo(bookShelfBean)
                     .flatMap(bookShelf -> WebBookModel.getInstance().getChapterList(bookShelf));
@@ -193,13 +204,14 @@ public class UpLastChapterModel {
         }
     }
 
-    private Observable<SearchBookBean> saveSearchBookBean(BookShelfBean bookShelfBean) {
+    private Observable<SearchBookBean> saveSearchBookBean(List<BookChapterBean> chapterBeanList) {
         return Observable.create(e -> {
+            BookChapterBean chapterBean = chapterBeanList.get(chapterBeanList.size() - 1);
             SearchBookBean searchBookBean = DbHelper.getDaoSession().getSearchBookBeanDao().queryBuilder()
-                    .where(SearchBookBeanDao.Properties.NoteUrl.eq(bookShelfBean.getNoteUrl()))
+                    .where(SearchBookBeanDao.Properties.NoteUrl.eq(chapterBean.getNoteUrl()))
                     .unique();
             if (searchBookBean != null) {
-                searchBookBean.setLastChapter(bookShelfBean.getLastChapterName());
+                searchBookBean.setLastChapter(chapterBean.getDurChapterName());
                 searchBookBean.setAddTime(System.currentTimeMillis());
                 DbHelper.getDaoSession().getSearchBookBeanDao().insertOrReplace(searchBookBean);
                 e.onNext(searchBookBean);

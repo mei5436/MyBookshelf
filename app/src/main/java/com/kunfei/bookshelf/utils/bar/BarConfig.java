@@ -7,10 +7,19 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Point;
+import android.graphics.Rect;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Display;
+import android.view.View;
+import android.view.Window;
 import android.view.WindowManager;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+
+import com.kunfei.bookshelf.MApplication;
 
 /**
  * Created by geyifeng on 2017/5/11.
@@ -23,7 +32,7 @@ class BarConfig {
     private static final String NAV_BAR_HEIGHT_LANDSCAPE_RES_NAME = "navigation_bar_height_landscape";
     private static final String NAV_BAR_WIDTH_RES_NAME = "navigation_bar_width";
 
-    private final int mStatusBarHeight;
+    private int mStatusBarHeight;
     private final int mActionBarHeight;
     private final boolean mHasNavigationBar;
     private final int mNavigationBarHeight;
@@ -47,20 +56,30 @@ class BarConfig {
     private static boolean hasNavBar(Activity activity) {
         WindowManager windowManager = activity.getWindowManager();
         Display d = windowManager.getDefaultDisplay();
-
-        DisplayMetrics realDisplayMetrics = new DisplayMetrics();
-        d.getRealMetrics(realDisplayMetrics);
-
-        int realHeight = realDisplayMetrics.heightPixels;
-        int realWidth = realDisplayMetrics.widthPixels;
-
-        DisplayMetrics displayMetrics = new DisplayMetrics();
-        d.getMetrics(displayMetrics);
-
-        int displayHeight = displayMetrics.heightPixels;
-        int displayWidth = displayMetrics.widthPixels;
-
-        return (realWidth - displayWidth) > 0 || (realHeight - displayHeight) > 0;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            DisplayMetrics realDisplayMetrics = new DisplayMetrics();
+            DisplayMetrics displayMetrics = new DisplayMetrics();
+            d.getRealMetrics(realDisplayMetrics);
+            d.getMetrics(displayMetrics);
+            int realHeight = realDisplayMetrics.heightPixels;
+            int realWidth = realDisplayMetrics.widthPixels;
+            int displayHeight = displayMetrics.heightPixels;
+            int displayWidth = displayMetrics.widthPixels;
+            return (realWidth - displayWidth) > 0 || (realHeight - displayHeight) > 0;
+        } else {
+            View decorView = activity.getWindow().getDecorView();
+            Point point = new Point();
+            d.getSize(point);
+            Configuration conf = activity.getResources().getConfiguration();
+            if (Configuration.ORIENTATION_LANDSCAPE == conf.orientation) {
+                View contentView = decorView.findViewById(android.R.id.content);
+                return (point.x != contentView.getWidth());
+            } else {
+                Rect rect = new Rect();
+                decorView.getWindowVisibleDisplayFrame(rect);
+                return (rect.bottom != point.y);
+            }
+        }
     }
 
     @TargetApi(14)
@@ -112,10 +131,13 @@ class BarConfig {
         return result;
     }
 
-    @SuppressLint("NewApi")
     private float getSmallestWidthDp(Activity activity) {
         DisplayMetrics metrics = new DisplayMetrics();
-        activity.getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            activity.getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
+        } else {
+            activity.getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        }
         float widthDp = metrics.widthPixels / metrics.density;
         float heightDp = metrics.heightPixels / metrics.density;
         return Math.min(widthDp, heightDp);
@@ -180,12 +202,7 @@ class BarConfig {
     }
 
     public boolean checkDeviceHasNavigationBar(Activity activity) {
-        Display display = activity.getWindowManager().getDefaultDisplay();
-        Point size = new Point();
-        Point realSize = new Point();
-        display.getSize(size);
-        display.getRealSize(realSize);
-        return realSize.y != size.y;
+        return hasNavBar(activity);
     }
 
 }

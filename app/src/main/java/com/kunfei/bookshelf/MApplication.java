@@ -1,7 +1,6 @@
 //Copyright (c) 2017. 章钦豪. All rights reserved.
 package com.kunfei.bookshelf;
 
-import android.Manifest;
 import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -12,6 +11,10 @@ import android.content.res.Resources;
 import android.os.Build;
 import android.text.TextUtils;
 
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.multidex.MultiDex;
+
 import com.kunfei.bookshelf.constant.AppConstant;
 import com.kunfei.bookshelf.help.AppFrontBackHelper;
 import com.kunfei.bookshelf.help.CrashHandler;
@@ -20,18 +23,20 @@ import com.kunfei.bookshelf.model.UpLastChapterModel;
 import com.kunfei.bookshelf.utils.theme.ThemeStore;
 
 import java.io.File;
+import java.util.Arrays;
+
 import java.util.concurrent.TimeUnit;
 
-import androidx.annotation.RequiresApi;
-import androidx.multidex.MultiDex;
+import io.reactivex.internal.functions.Functions;
+import io.reactivex.plugins.RxJavaPlugins;
 
 public class MApplication extends Application {
-    public final static boolean DEBUG = BuildConfig.DEBUG;
     public final static String channelIdDownload = "channel_download";
     public final static String channelIdReadAloud = "channel_read_aloud";
-    public final static String[] PerList = {Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE};
-    public final static int RESULT__PERMS = 263;
+    public final static String channelIdWeb = "channel_web";
     public static String downloadPath;
+    public static boolean isEInkMode;
+    public static String SEARCH_GROUP = null;
     private static MApplication instance;
     private static String versionName;
     private static int versionCode;
@@ -59,53 +64,67 @@ public class MApplication extends Application {
         super.onCreate();
         instance = this;
         CrashHandler.getInstance().init(this);
+        RxJavaPlugins.setErrorHandler(Functions.emptyConsumer());
         try {
             versionCode = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (PackageManager.NameNotFoundException e) {
             versionCode = 0;
             versionName = "0.0.0";
-            e.printStackTrace();
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            createChannelIdDownload();
-            createChannelIdReadAloud();
+            createChannelId();
         }
         configPreferences = getSharedPreferences("CONFIG", 0);
         downloadPath = configPreferences.getString(getString(R.string.pk_download_path), "");
-        if (TextUtils.isEmpty(downloadPath)) {
+        if (TextUtils.isEmpty(downloadPath) | equals(downloadPath, FileHelp.getCachePath())) {
             setDownloadPath(null);
         }
+        initNightTheme();
         if (!ThemeStore.isConfigured(this, versionCode)) {
             upThemeStore();
         }
         AppFrontBackHelper.getInstance().register(this, new AppFrontBackHelper.OnAppStatusListener() {
             @Override
             public void onFront() {
-                donateHb = System.currentTimeMillis() - configPreferences.getLong("DonateHb", 0) <= TimeUnit.DAYS.toMillis(3);
+                donateHb = System.currentTimeMillis() - configPreferences.getLong("DonateHb", 0) <= TimeUnit.DAYS.toMillis(30);
             }
 
             @Override
             public void onBack() {
-                if (UpLastChapterModel.model != null) {
-                    UpLastChapterModel.model.onDestroy();
-                }
+                UpLastChapterModel.destroy();
             }
         });
-
+        upEInkMode();
     }
-
+    private static boolean equals(Object object1, Object object2) {
+        if (object1 != null) {
+            return object1.equals(object2);
+        }
+        if (object2 != null) {
+            return object2.equals(object1);
+        }
+        return true;
+    }
     @Override
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
         MultiDex.install(this);
     }
 
+    public void initNightTheme() {
+        if (isNightTheme()) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        }
+    }
+
     /**
      * 初始化主题
      */
     public void upThemeStore() {
-        if (configPreferences.getBoolean("nightTheme", false)) {
+        if (isNightTheme()) {
             ThemeStore.editTheme(this)
                     .primaryColor(configPreferences.getInt("colorPrimaryNight", getResources().getColor(R.color.md_grey_800)))
                     .accentColor(configPreferences.getInt("colorAccentNight", getResources().getColor(R.color.md_pink_800)))
@@ -120,19 +139,23 @@ public class MApplication extends Application {
         }
     }
 
+    public boolean isNightTheme() {
+        return configPreferences.getBoolean("nightTheme", false);
+    }
+
     /**
      * 设置下载地址
      */
-    public void setDownloadPath(String downloadPath) {
-        if (TextUtils.isEmpty(downloadPath)) {
-            MApplication.downloadPath = FileHelp.getFilesPath();
+    public void setDownloadPath(String path) {
+        if (TextUtils.isEmpty(path)) {
+            downloadPath = FileHelp.getFilesPath();
         } else {
-            MApplication.downloadPath = downloadPath;
+            downloadPath = path;
         }
-        AppConstant.BOOK_CACHE_PATH = MApplication.downloadPath + File.separator + "book_cache" + File.separator;
-        SharedPreferences.Editor editor = configPreferences.edit();
-        editor.putString(getString(R.string.pk_download_path), downloadPath);
-        editor.apply();
+        AppConstant.BOOK_CACHE_PATH = downloadPath + File.separator + "book_cache" + File.separator;
+        configPreferences.edit()
+                .putString(getString(R.string.pk_download_path), path)
+                .apply();
     }
 
     public static SharedPreferences getConfigPreferences() {
@@ -144,43 +167,52 @@ public class MApplication extends Application {
     }
 
     public void upDonateHb() {
-        SharedPreferences.Editor editor = configPreferences.edit();
-        editor.putLong("DonateHb", System.currentTimeMillis());
-        editor.apply();
+        configPreferences.edit()
+                .putLong("DonateHb", System.currentTimeMillis())
+                .apply();
         donateHb = true;
     }
 
+    public void upEInkMode() {
+        MApplication.isEInkMode = configPreferences.getBoolean("E-InkMode", false);
+    }
+
+    /**
+     * 创建通知ID
+     */
     @RequiresApi(Build.VERSION_CODES.O)
-    private void createChannelIdDownload() {
+    private void createChannelId() {
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         //用唯一的ID创建渠道对象
-        NotificationChannel firstChannel = new NotificationChannel(channelIdDownload,
+        NotificationChannel downloadChannel = new NotificationChannel(channelIdDownload,
                 getString(R.string.download_offline),
                 NotificationManager.IMPORTANCE_LOW);
         //初始化channel
-        firstChannel.enableLights(false);
-        firstChannel.enableVibration(false);
-        firstChannel.setSound(null, null);
-        //向notification manager 提交channel
-        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (notificationManager != null) {
-            notificationManager.createNotificationChannel(firstChannel);
-        }
-    }
+        downloadChannel.enableLights(false);
+        downloadChannel.enableVibration(false);
+        downloadChannel.setSound(null, null);
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    private void createChannelIdReadAloud() {
         //用唯一的ID创建渠道对象
-        NotificationChannel firstChannel = new NotificationChannel(channelIdReadAloud,
+        NotificationChannel readAloudChannel = new NotificationChannel(channelIdReadAloud,
                 getString(R.string.read_aloud),
                 NotificationManager.IMPORTANCE_LOW);
         //初始化channel
-        firstChannel.enableLights(false);
-        firstChannel.enableVibration(false);
-        firstChannel.setSound(null, null);
+        readAloudChannel.enableLights(false);
+        readAloudChannel.enableVibration(false);
+        readAloudChannel.setSound(null, null);
+
+        //用唯一的ID创建渠道对象
+        NotificationChannel webChannel = new NotificationChannel(channelIdWeb,
+                getString(R.string.web_service),
+                NotificationManager.IMPORTANCE_LOW);
+        //初始化channel
+        webChannel.enableLights(false);
+        webChannel.enableVibration(false);
+        webChannel.setSound(null, null);
+
         //向notification manager 提交channel
-        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (notificationManager != null) {
-            notificationManager.createNotificationChannel(firstChannel);
+            notificationManager.createNotificationChannels(Arrays.asList(downloadChannel, readAloudChannel, webChannel));
         }
     }
 

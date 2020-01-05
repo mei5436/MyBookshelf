@@ -15,6 +15,9 @@ import android.text.TextUtils;
 import android.util.SparseArray;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+
 import com.kunfei.bookshelf.MApplication;
 import com.kunfei.bookshelf.R;
 import com.kunfei.bookshelf.bean.DownloadBookBean;
@@ -29,8 +32,6 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
 import io.reactivex.Scheduler;
 import io.reactivex.schedulers.Schedulers;
 
@@ -239,11 +240,19 @@ public class DownloadService extends Service {
         return downloading < threadsNum;
     }
 
-
+    private static boolean equals(Object object1, Object object2) {
+        if (object1 != null) {
+            return object1.equals(object2);
+        }
+        if (object2 != null) {
+            return object2.equals(object1);
+        }
+        return true;
+    }
     private synchronized boolean checkDownloadTaskExist(DownloadBookBean downloadBook) {
         for (int i = downloadTasks.size() - 1; i >= 0; i--) {
             IDownloadTask downloadTask = downloadTasks.valueAt(i);
-            if (Objects.equals(downloadTask.getDownloadBook(), downloadBook)) {
+            if (equals(downloadTask.getDownloadBook(), downloadBook)) {
                 return true;
             }
         }

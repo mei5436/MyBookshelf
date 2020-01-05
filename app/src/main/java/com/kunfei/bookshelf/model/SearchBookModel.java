@@ -1,10 +1,9 @@
 package com.kunfei.bookshelf.model;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 
 import com.kunfei.bookshelf.MApplication;
 import com.kunfei.bookshelf.R;
@@ -14,11 +13,10 @@ import com.kunfei.bookshelf.bean.SearchBookBean;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import androidx.annotation.NonNull;
 import io.reactivex.Observer;
 import io.reactivex.Scheduler;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -32,7 +30,6 @@ import io.reactivex.schedulers.Schedulers;
  */
 
 public class SearchBookModel {
-    private Context context;
     private Handler handler = new Handler(Looper.getMainLooper());
     private ExecutorService executorService;
     private Scheduler scheduler;
@@ -45,15 +42,21 @@ public class SearchBookModel {
     private CompositeDisposable compositeDisposable;
     private OnSearchListener searchListener;
 
-    public SearchBookModel(Context context, OnSearchListener searchListener) {
-        this.context = context;
+    public SearchBookModel(OnSearchListener searchListener) {
+        this(searchListener, BookSourceManager.getSelectedBookSource());
+    }
+
+    public SearchBookModel(OnSearchListener searchListener, List<BookSourceBean> sourceBeanList) {
         this.searchListener = searchListener;
-        SharedPreferences preference = MApplication.getConfigPreferences();
-        threadsNum = preference.getInt(this.context.getString(R.string.pk_threads_num), 6);
+        threadsNum = MApplication.getConfigPreferences().getInt(MApplication.getInstance().getString(R.string.pk_threads_num), 6);
         executorService = Executors.newFixedThreadPool(threadsNum);
         scheduler = Schedulers.from(executorService);
         compositeDisposable = new CompositeDisposable();
-        initSearchEngineS(BookSourceManager.getSelectedBookSource());
+        if (sourceBeanList == null) {
+            initSearchEngineS(BookSourceManager.getSelectedBookSource());
+        } else {
+            initSearchEngineS(sourceBeanList);
+        }
     }
 
     /**
@@ -89,6 +92,16 @@ public class SearchBookModel {
         });
     }
 
+    private void searchBookError(Throwable throwable) {
+        compositeDisposable.dispose();
+        compositeDisposable = new CompositeDisposable();
+        handler.post(() -> {
+            searchListener.refreshFinish(true);
+            searchListener.loadMoreFinish(true);
+            searchListener.searchBookError(throwable);
+        });
+    }
+
     public void onDestroy() {
         stopSearch();
         executorService.shutdown();
@@ -112,11 +125,7 @@ public class SearchBookModel {
             handler.post(() -> searchListener.refreshSearchBook());
         }
         if (searchEngineS.size() == 0) {
-            handler.post(() -> {
-                Toast.makeText(context, "没有选中任何书源", Toast.LENGTH_SHORT).show();
-                searchListener.refreshFinish(true);
-                searchListener.loadMoreFinish(true);
-            });
+            searchBookError(new Throwable("没有选中任何书源"));
             return;
         }
         searchSuccessNum = 0;
@@ -136,7 +145,7 @@ public class SearchBookModel {
             final SearchEngine searchEngine = searchEngineS.get(searchEngineIndex);
             if (searchEngine.getHasMore()) {
                 WebBookModel.getInstance()
-                        .searchOtherBook(content, page, searchEngine.getTag())
+                        .searchBook(content, page, searchEngine.getTag())
                         .subscribeOn(scheduler)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(new Observer<List<SearchBookBean>>() {
@@ -154,22 +163,28 @@ public class SearchBookModel {
                                             int searchTime = (int) (System.currentTimeMillis() - startTime) / 1000;
                                             temp.setSearchTime(searchTime);
                                             for (BookShelfBean bookShelfBean : bookShelfS) {
-                                                if (Objects.equals(bookShelfBean.getNoteUrl(), temp.getNoteUrl())) {
+                                                if (equals(bookShelfBean.getNoteUrl(), temp.getNoteUrl())) {
                                                     temp.setIsCurrentSource(true);
                                                     break;
                                                 }
                                             }
                                         }
-                                        if (!searchListener.checkIsExist(searchBookBeans.get(0))) {
-                                            searchListener.loadMoreSearchBook(searchBookBeans);
-                                        } else {
-                                            searchEngine.setHasMore(false);
-                                        }
+                                        searchListener.loadMoreSearchBook(searchBookBeans);
                                     } else {
                                         searchEngine.setHasMore(false);
                                     }
                                     searchOnEngine(content, bookShelfS, searchTime);
                                 }
+                            }
+
+                            private boolean equals(Object object1, Object object2) {
+                                if (object1 != null) {
+                                    return object1.equals(object2);
+                                }
+                                if (object2 != null) {
+                                    return object2.equals(object1);
+                                }
+                                return true;
                             }
 
                             @Override
@@ -191,9 +206,9 @@ public class SearchBookModel {
             if (searchEngineIndex >= searchEngineS.size() + threadsNum - 1) {
                 if (searchSuccessNum == 0 && searchListener.getItemCount() == 0) {
                     if (page == 1) {
-                        handler.post(() -> searchListener.searchBookError(true));
+                        searchBookError(new Throwable("未搜索到内容"));
                     } else {
-                        handler.post(() -> searchListener.searchBookError(false));
+                        searchBookError(new Throwable("未搜索到更多内容"));
                     }
                 } else {
                     if (page == 1) {
@@ -226,11 +241,9 @@ public class SearchBookModel {
 
         void loadMoreFinish(Boolean isAll);
 
-        Boolean checkIsExist(SearchBookBean searchBookBean);
-
         void loadMoreSearchBook(List<SearchBookBean> searchBookBeanList);
 
-        void searchBookError(Boolean isRefresh);
+        void searchBookError(Throwable throwable);
 
         int getItemCount();
     }

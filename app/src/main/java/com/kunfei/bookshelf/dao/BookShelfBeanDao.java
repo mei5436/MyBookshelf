@@ -41,6 +41,7 @@ public class BookShelfBeanDao extends AbstractDao<BookShelfBean, String> {
         public final static Property AllowUpdate = new Property(14, Boolean.class, "allowUpdate", false, "ALLOW_UPDATE");
         public final static Property UseReplaceRule = new Property(15, Boolean.class, "useReplaceRule", false, "USE_REPLACE_RULE");
         public final static Property Variable = new Property(16, String.class, "variable", false, "VARIABLE");
+        public final static Property ReplaceEnable = new Property(17, Boolean.class, "replaceEnable", false, "REPLACE_ENABLE");
     }
 
 
@@ -72,7 +73,8 @@ public class BookShelfBeanDao extends AbstractDao<BookShelfBean, String> {
                 "\"CUSTOM_COVER_PATH\" TEXT," + // 13: customCoverPath
                 "\"ALLOW_UPDATE\" INTEGER," + // 14: allowUpdate
                 "\"USE_REPLACE_RULE\" INTEGER," + // 15: useReplaceRule
-                "\"VARIABLE\" TEXT);"); // 16: variable
+                "\"VARIABLE\" TEXT," + // 16: variable
+                "\"REPLACE_ENABLE\" INTEGER);"); // 17: replaceEnable
     }
 
     /** Drops the underlying database table. */
@@ -169,6 +171,11 @@ public class BookShelfBeanDao extends AbstractDao<BookShelfBean, String> {
         if (variable != null) {
             stmt.bindString(17, variable);
         }
+ 
+        Boolean replaceEnable = entity.getReplaceEnable();
+        if (replaceEnable != null) {
+            stmt.bindLong(18, replaceEnable ? 1L: 0L);
+        }
     }
 
     @Override
@@ -259,6 +266,11 @@ public class BookShelfBeanDao extends AbstractDao<BookShelfBean, String> {
         if (variable != null) {
             stmt.bindString(17, variable);
         }
+ 
+        Boolean replaceEnable = entity.getReplaceEnable();
+        if (replaceEnable != null) {
+            stmt.bindLong(18, replaceEnable ? 1L: 0L);
+        }
     }
 
     @Override
@@ -285,7 +297,8 @@ public class BookShelfBeanDao extends AbstractDao<BookShelfBean, String> {
             cursor.isNull(offset + 13) ? null : cursor.getString(offset + 13), // customCoverPath
             cursor.isNull(offset + 14) ? null : cursor.getShort(offset + 14) != 0, // allowUpdate
             cursor.isNull(offset + 15) ? null : cursor.getShort(offset + 15) != 0, // useReplaceRule
-            cursor.isNull(offset + 16) ? null : cursor.getString(offset + 16) // variable
+            cursor.isNull(offset + 16) ? null : cursor.getString(offset + 16), // variable
+            cursor.isNull(offset + 17) ? null : cursor.getShort(offset + 17) != 0 // replaceEnable
         );
         return entity;
     }
@@ -309,6 +322,7 @@ public class BookShelfBeanDao extends AbstractDao<BookShelfBean, String> {
         entity.setAllowUpdate(cursor.isNull(offset + 14) ? null : cursor.getShort(offset + 14) != 0);
         entity.setUseReplaceRule(cursor.isNull(offset + 15) ? null : cursor.getShort(offset + 15) != 0);
         entity.setVariable(cursor.isNull(offset + 16) ? null : cursor.getString(offset + 16));
+        entity.setReplaceEnable(cursor.isNull(offset + 17) ? null : cursor.getShort(offset + 17) != 0);
      }
     
     @Override

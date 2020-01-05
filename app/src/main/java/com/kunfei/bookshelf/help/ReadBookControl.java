@@ -15,6 +15,7 @@ import android.util.DisplayMetrics;
 
 import com.kunfei.bookshelf.MApplication;
 import com.kunfei.bookshelf.utils.BitmapUtil;
+import com.kunfei.bookshelf.utils.MeUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,7 +48,7 @@ public class ReadBookControl {
     private Boolean canClickTurn;
     private Boolean canKeyTurn;
     private Boolean readAloudCanKeyTurn;
-    private int clickSensitivity;
+    private int CPM;
     private Boolean clickAllNext;
     private Boolean showTitle;
     private Boolean showTimeBattery;
@@ -59,7 +60,15 @@ public class ReadBookControl {
     private int paddingTop;
     private int paddingRight;
     private int paddingBottom;
-    private Boolean tipMarginChange;
+    private int tipPaddingLeft;
+    private int tipPaddingTop;
+    private int tipPaddingRight;
+    private int tipPaddingBottom;
+    private float textLetterSpacing;
+    private boolean canSelectText;
+    public int minCPM = 200;
+    public int maxCPM = 2000;
+    private int defaultCPM = 500;
 
     private SharedPreferences preferences;
 
@@ -82,7 +91,7 @@ public class ReadBookControl {
         updateReaderSettings();
     }
 
-    public void updateReaderSettings() {
+    void updateReaderSettings() {
         this.hideStatusBar = preferences.getBoolean("hide_status_bar", false);
         this.hideNavigationBar = preferences.getBoolean("hide_navigation_bar", false);
         this.indent = preferences.getInt("indent", 2);
@@ -92,8 +101,8 @@ public class ReadBookControl {
         this.readAloudCanKeyTurn = preferences.getBoolean("readAloudCanKeyTurn", false);
         this.lineMultiplier = preferences.getFloat("lineMultiplier", 1);
         this.paragraphSize = preferences.getFloat("paragraphSize", 1);
-        this.clickSensitivity = preferences.getInt("clickSensitivity", 50) > 100
-                ? 50 : preferences.getInt("clickSensitivity", 50);
+        this.CPM = preferences.getInt("CPM", defaultCPM) > maxCPM
+                ? minCPM : preferences.getInt("CPM", defaultCPM);
         this.clickAllNext = preferences.getBoolean("clickAllNext", false);
         this.fontPath = preferences.getString("fontPath", null);
         this.textConvert = preferences.getInt("textConvertInt", 0);
@@ -108,11 +117,15 @@ public class ReadBookControl {
         this.paddingTop = preferences.getInt("paddingTop", 0);
         this.paddingRight = preferences.getInt("paddingRight", DEFAULT_MARGIN_WIDTH);
         this.paddingBottom = preferences.getInt("paddingBottom", 0);
+        this.tipPaddingLeft = preferences.getInt("tipPaddingLeft", DEFAULT_MARGIN_WIDTH);
+        this.tipPaddingTop = preferences.getInt("tipPaddingTop", 0);
+        this.tipPaddingRight = preferences.getInt("tipPaddingRight", DEFAULT_MARGIN_WIDTH);
+        this.tipPaddingBottom = preferences.getInt("tipPaddingBottom", 0);
         this.pageMode = preferences.getInt("pageMode", 0);
         this.screenDirection = preferences.getInt("screenDirection", 0);
-        this.tipMarginChange = preferences.getBoolean("tipMarginChange", false);
         this.navBarColor = preferences.getInt("navBarColorInt", 0);
-
+        this.textLetterSpacing = preferences.getFloat("textLetterSpacing", 0);
+        this.canSelectText = preferences.getBoolean("canSelectText", false);
         initTextDrawableIndex();
     }
 
@@ -172,14 +185,19 @@ public class ReadBookControl {
 
     @SuppressWarnings("ConstantConditions")
     private void initPageStyle() {
-        if (getBgCustom(textDrawableIndex) == 2 && getBgPath(textDrawableIndex) != null) {
+        int bgCustom = getBgCustom(textDrawableIndex);
+        if ((bgCustom == 2 || bgCustom == 3) && getBgPath(textDrawableIndex) != null) {
             bgIsColor = false;
             String bgPath = getBgPath(textDrawableIndex);
             Resources resources = MApplication.getInstance().getResources();
             DisplayMetrics dm = resources.getDisplayMetrics();
             int width = dm.widthPixels;
             int height = dm.heightPixels;
-            bgBitmap = BitmapUtil.getFitSampleBitmap(bgPath, width, height);
+            if (bgCustom == 2) {
+                bgBitmap = BitmapUtil.getFitSampleBitmap(bgPath, width, height);
+            } else {
+                bgBitmap = MeUtils.getFitAssetsSampleBitmap(MApplication.getInstance().getAssets(), bgPath, width, height);
+            }
             if (bgBitmap != null) {
                 return;
             }
@@ -215,9 +233,15 @@ public class ReadBookControl {
     public Drawable getBgDrawable(int textDrawableIndex, Context context, int width, int height) {
         int color;
         try {
+            Bitmap bitmap = null;
             switch (getBgCustom(textDrawableIndex)) {
+                case 3:
+                    bitmap = MeUtils.getFitAssetsSampleBitmap(context.getAssets(), getBgPath(textDrawableIndex), width, height);
+                    if (bitmap != null) {
+                        return new BitmapDrawable(context.getResources(), bitmap);
+                    }
                 case 2:
-                    Bitmap bitmap = BitmapUtil.getFitSampleBitmap(getBgPath(textDrawableIndex), width, height);
+                    bitmap = BitmapUtil.getFitSampleBitmap(getBgPath(textDrawableIndex), width, height);
                     if (bitmap != null) {
                         return new BitmapDrawable(context.getResources(), bitmap);
                     }
@@ -292,7 +316,7 @@ public class ReadBookControl {
     }
 
     private boolean getIsNightTheme() {
-        return preferences.getBoolean("nightTheme", false);
+        return MApplication.getInstance().isNightTheme();
     }
 
     public boolean getImmersionStatusBar() {
@@ -340,7 +364,7 @@ public class ReadBookControl {
     }
 
     public Bitmap getBgBitmap() {
-        return bgBitmap.copy(Bitmap.Config.RGB_565, true);
+        return bgBitmap.copy(Bitmap.Config.ARGB_8888, true);
     }
 
     public int getTextDrawableIndex() {
@@ -368,14 +392,14 @@ public class ReadBookControl {
                 .apply();
     }
 
-    public void setNavbarColor(int navBarColor) {
+    public void setNavBarColor(int navBarColor) {
         this.navBarColor = navBarColor;
         preferences.edit()
                 .putInt("navBarColorInt", navBarColor)
                 .apply();
     }
 
-    public int getNavbarColor() {
+    public int getNavBarColor() {
         return navBarColor;
     }
 
@@ -449,6 +473,17 @@ public class ReadBookControl {
                 .apply();
     }
 
+    public float getTextLetterSpacing() {
+        return textLetterSpacing;
+    }
+
+    public void setTextLetterSpacing(float textLetterSpacing) {
+        this.textLetterSpacing = textLetterSpacing;
+        preferences.edit()
+                .putFloat("textLetterSpacing", textLetterSpacing)
+                .apply();
+    }
+
     public float getLineMultiplier() {
         return lineMultiplier;
     }
@@ -471,14 +506,15 @@ public class ReadBookControl {
                 .apply();
     }
 
-    public int getClickSensitivity() {
-        return clickSensitivity;
+    public int getCPM() {
+        return CPM;
     }
 
-    public void setClickSensitivity(int clickSensitivity) {
-        this.clickSensitivity = clickSensitivity;
+    public void setCPM(int cpm) {
+        if (cpm < minCPM || cpm > maxCPM) cpm = defaultCPM;
+        this.CPM = cpm;
         preferences.edit()
-                .putInt("clickSensitivity", clickSensitivity)
+                .putInt("CPM", cpm)
                 .apply();
     }
 
@@ -545,6 +581,16 @@ public class ReadBookControl {
         this.hideStatusBar = hideStatusBar;
         preferences.edit()
                 .putBoolean("hide_status_bar", hideStatusBar)
+                .apply();
+    }
+
+    public Boolean getToLh() {
+        return preferences.getBoolean("toLh", false);
+    }
+
+    public void setToLh(Boolean toLh) {
+        preferences.edit()
+                .putBoolean("toLh", toLh)
                 .apply();
     }
 
@@ -640,6 +686,61 @@ public class ReadBookControl {
                 .apply();
     }
 
+    public int getTipPaddingLeft() {
+        return tipPaddingLeft;
+    }
+
+    public void setTipPaddingLeft(int tipPaddingLeft) {
+        this.tipPaddingLeft = tipPaddingLeft;
+        preferences.edit()
+                .putInt("tipPaddingLeft", tipPaddingLeft)
+                .apply();
+    }
+
+    public boolean isCanSelectText() {
+        return canSelectText;
+    }
+
+    public void setCanSelectText(boolean canSelectText) {
+        this.canSelectText = canSelectText;
+        preferences.edit()
+                .putBoolean("canSelectText", canSelectText)
+                .apply();
+    }
+
+    public int getTipPaddingTop() {
+        return tipPaddingTop;
+    }
+
+    public void setTipPaddingTop(int tipPaddingTop) {
+        this.tipPaddingTop = tipPaddingTop;
+        preferences.edit()
+                .putInt("tipPaddingTop", tipPaddingTop)
+                .apply();
+    }
+
+    public int getTipPaddingRight() {
+        return tipPaddingRight;
+    }
+
+    public void setTipPaddingRight(int tipPaddingRight) {
+        this.tipPaddingRight = tipPaddingRight;
+        preferences.edit()
+                .putInt("tipPaddingRight", tipPaddingRight)
+                .apply();
+    }
+
+    public int getTipPaddingBottom() {
+        return tipPaddingBottom;
+    }
+
+    public void setTipPaddingBottom(int tipPaddingBottom) {
+        this.tipPaddingBottom = tipPaddingBottom;
+        preferences.edit()
+                .putInt("tipPaddingBottom", tipPaddingBottom)
+                .apply();
+    }
+
     public int getPageMode() {
         return pageMode;
     }
@@ -659,17 +760,6 @@ public class ReadBookControl {
         this.screenDirection = screenDirection;
         preferences.edit()
                 .putInt("screenDirection", screenDirection)
-                .apply();
-    }
-
-    public Boolean getTipMarginChange() {
-        return tipMarginChange;
-    }
-
-    public void setTipMarginChange(Boolean tipMarginChange) {
-        this.tipMarginChange = tipMarginChange;
-        preferences.edit()
-                .putBoolean("tipMarginChange", tipMarginChange)
                 .apply();
     }
 
@@ -695,12 +785,12 @@ public class ReadBookControl {
     }
 
     public Boolean getLightFollowSys() {
-        return preferences.getBoolean("isfollowsys", true);
+        return preferences.getBoolean("lightFollowSys", true);
     }
 
     public void setLightFollowSys(boolean isFollowSys) {
         preferences.edit()
-                .putBoolean("isfollowsys", isFollowSys)
+                .putBoolean("lightFollowSys", isFollowSys)
                 .apply();
     }
 
@@ -709,9 +799,12 @@ public class ReadBookControl {
         ContentResolver cr = MApplication.getInstance().getContentResolver();
         try {
             value = Settings.System.getInt(cr, Settings.System.SCREEN_BRIGHTNESS);
-        } catch (Settings.SettingNotFoundException e) {
-            e.printStackTrace();
+        } catch (Settings.SettingNotFoundException ignored) {
         }
         return value;
+    }
+
+    public boolean disableScrollClickTurn() {
+        return preferences.getBoolean("disableScrollClickTurn", false);
     }
 }

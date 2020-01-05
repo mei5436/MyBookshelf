@@ -2,14 +2,15 @@ package com.kunfei.bookshelf.widget.views;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.os.Build;
 import android.util.AttributeSet;
+
+import androidx.appcompat.widget.AppCompatTextView;
 
 import com.kunfei.bookshelf.utils.ColorUtil;
 import com.kunfei.bookshelf.utils.ScreenUtils;
 import com.kunfei.bookshelf.utils.Selector;
 import com.kunfei.bookshelf.utils.theme.ThemeStore;
-
-import androidx.appcompat.widget.AppCompatTextView;
 
 public class ATEAccentBgTextView extends AppCompatTextView {
     public ATEAccentBgTextView(Context context) {
@@ -28,11 +29,19 @@ public class ATEAccentBgTextView extends AppCompatTextView {
     }
 
     private void init(Context context, AttributeSet attrs) {
-        setBackground(Selector.shapeBuild()
-                .setCornerRadius(ScreenUtils.dpToPx(3))
-                .setDefaultBgColor(ThemeStore.accentColor(context))
-                .setPressedBgColor(ColorUtil.darkenColor(ThemeStore.accentColor(context)))
-                .create());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            setBackground(Selector.shapeBuild()
+                    .setCornerRadius(ScreenUtils.dpToPx(3))
+                    .setDefaultBgColor(ThemeStore.accentColor(context))
+                    .setPressedBgColor(ColorUtil.darkenColor(ThemeStore.accentColor(context)))
+                    .create());
+        }else{
+            setBackgroundDrawable(Selector.shapeBuild()
+                    .setCornerRadius(ScreenUtils.dpToPx(3))
+                    .setDefaultBgColor(ThemeStore.accentColor(context))
+                    .setPressedBgColor(ColorUtil.darkenColor(ThemeStore.accentColor(context)))
+                    .create());
+        }
         setTextColor(Color.WHITE);
     }
 }

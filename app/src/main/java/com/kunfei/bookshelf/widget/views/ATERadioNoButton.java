@@ -2,13 +2,14 @@ package com.kunfei.bookshelf.widget.views;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.os.Build;
 import android.util.AttributeSet;
+
+import androidx.appcompat.widget.AppCompatRadioButton;
 
 import com.kunfei.bookshelf.utils.ScreenUtils;
 import com.kunfei.bookshelf.utils.Selector;
 import com.kunfei.bookshelf.utils.theme.ThemeStore;
-
-import androidx.appcompat.widget.AppCompatRadioButton;
 
 /**
  * @author Aidan Follestad (afollestad)
@@ -31,12 +32,22 @@ public class ATERadioNoButton extends AppCompatRadioButton {
     }
 
     private void init(Context context, AttributeSet attrs) {
-        setBackground(Selector.shapeBuild()
-                .setCornerRadius(ScreenUtils.dpToPx(3))
-                .setStrokeWidth(ScreenUtils.dpToPx(1))
-                .setCheckedBgColor(ThemeStore.accentColor(context))
-                .setCheckedStrokeColor(ThemeStore.accentColor(context))
-                .setDefaultStrokeColor(Color.WHITE)
-                .create());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            setBackground(Selector.shapeBuild()
+                    .setCornerRadius(ScreenUtils.dpToPx(3))
+                    .setStrokeWidth(ScreenUtils.dpToPx(1))
+                    .setCheckedBgColor(ThemeStore.accentColor(context))
+                    .setCheckedStrokeColor(ThemeStore.accentColor(context))
+                    .setDefaultStrokeColor(Color.WHITE)
+                    .create());
+        }else {
+            setBackgroundDrawable(Selector.shapeBuild()
+                    .setCornerRadius(ScreenUtils.dpToPx(3))
+                    .setStrokeWidth(ScreenUtils.dpToPx(1))
+                    .setCheckedBgColor(ThemeStore.accentColor(context))
+                    .setCheckedStrokeColor(ThemeStore.accentColor(context))
+                    .setDefaultStrokeColor(Color.WHITE)
+                    .create());
+        }
     }
 }
