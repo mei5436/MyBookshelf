@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
+import kotlin.text.Charsets;
+
 public class ReadAssets {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -20,7 +22,7 @@ public class ReadAssets {
             is.close();
             // Convert the buffer into a string.
             // Finally stick the string into the text view.
-            return new String(buffer, StandardCharsets.UTF_8);
+            return new String(buffer, Charsets.UTF_8);
         } catch (IOException e) {
             // Should never happen!
             e.printStackTrace();
