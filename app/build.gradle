@@ -2,7 +2,6 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-android'
 apply plugin: 'org.greenrobot.greendao'
-//apply plugin: 'io.fabric'
 apply plugin: "de.timfreiheit.resourceplaceholders"
 
 static def releaseTime() {
@@ -12,11 +11,6 @@ static def releaseTime() {
 def name = "YueDu"
 def version = "2." + releaseTime()
 def gitCommits = "256"
-# RELEASE_STORE_FILE = "..\\key.properties.jks"
-def RELEASE_STORE_FILE=.\\key.properties.jks
-def RELEASE_KEY_PASSWORD=android
-def RELEASE_KEY_ALIAS=key0
-def RELEASE_STORE_PASSWORD=android
 
 android {
     compileSdkVersion 28
@@ -87,9 +81,6 @@ dependencies {
     implementation "org.jetbrains.anko:anko-sdk27:$anko_version"
     implementation "org.jetbrains.anko:anko-sdk27-listeners:$anko_version"
 
-    //fireBase
-//    implementation 'com.google.firebase:firebase-core:17.2.1'
-//    implementation 'com.crashlytics.sdk.android:crashlytics:2.10.1'
 
     //androidX
     implementation 'androidx.multidex:multidex:2.0.1'
@@ -142,9 +133,6 @@ dependencies {
     //字符串比较
     implementation 'net.ricecode:string-similarity:1.0.0'
 
-    //MarkDown
-//    implementation 'ru.noties.markwon:core:3.0.2'
-
     //epub
     implementation('nl.siegmann.epublib:epublib-core:3.1') {
         exclude group: 'org.slf4j'
@@ -160,7 +148,6 @@ greendao {
     targetGenDir 'src/main/java'
 }
 
-//apply plugin: 'com.google.gms.google-services'
 repositories {
     mavenCentral()
     flatDir {
