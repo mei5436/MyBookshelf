@@ -12,6 +12,11 @@ static def releaseTime() {
 def name = "YueDu"
 def version = "2." + releaseTime()
 def gitCommits = "256"
+# RELEASE_STORE_FILE = "..\\key.properties.jks"
+def RELEASE_STORE_FILE=.\\key.properties.jks
+def RELEASE_KEY_PASSWORD=android
+def RELEASE_KEY_ALIAS=key0
+def RELEASE_STORE_PASSWORD=android
 
 android {
     compileSdkVersion 28
