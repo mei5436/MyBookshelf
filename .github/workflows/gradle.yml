@@ -24,9 +24,4 @@ jobs:
       run: chmod +x gradlew
     - name: Build APK with Gradle
       run: ./gradlew assembleRelease
-    - name: Upload APK
-      uses: actions/upload-artifact@v1
-      with:
-        name: app
-        path: app/build/outputs/apk/release/app-release-signed.apk
 
